@@ -293,8 +293,8 @@
     document.getElementById('results').innerHTML = '';
 
     try {
-      const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query+' '+location)}&page=1&num_pages=2&date_posted=month`;
-      const res = await fetch(url, { headers: { 'x-rapidapi-host': 'jsearch.p.rapidapi.com', 'x-rapidapi-key': rapidKey } });
+      const url = `/api/search?query=${encodeURIComponent(query)}&location=${encodeURIComponent(location)}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('JSearch error ' + res.status);
       const data = await res.json();
       const jobs = (data.data || []).slice(0, 12);
