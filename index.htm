@@ -1,0 +1,400 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JobFit AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f9f8f5;
+    --border: #e2e0d8;
+    --border-dark: #ccc9be;
+    --accent: #5b4fff;
+    --accent-light: #ede9ff;
+    --accent2: #ff4f81;
+    --green: #00a86b;
+    --green-light: #e6f7f1;
+    --text: #1a1a2e;
+    --text2: #4a4a68;
+    --muted: #9996b0;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.09);
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: radial-gradient(circle, #c8c4b8 1px, transparent 1px);
+    background-size: 24px 24px; opacity: 0.4; pointer-events: none; z-index: 0;
+  }
+  .wrapper { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header { margin-bottom: 36px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .logo-row { display: flex; align-items: center; gap: 10px; }
+  .logo { font-family: var(--font-head); font-size: 26px; font-weight: 800; letter-spacing: -0.5px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo-tag { font-size: 10px; font-weight: 600; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; background: var(--accent-light); padding: 3px 8px; border-radius: 20px; }
+  .resume-status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-dark); transition: all 0.3s; }
+  .status-dot.loaded { background: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px 28px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .section-label { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Upload */
+  .upload-area { border: 2px dashed var(--border-dark); border-radius: 10px; padding: 36px 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; background: var(--surface2); }
+  .upload-area:hover { border-color: var(--accent); background: var(--accent-light); }
+  .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 38px; margin-bottom: 10px; }
+  .upload-title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+  .upload-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .upload-formats { display: flex; justify-content: center; gap: 7px; }
+  .fmt-tag { font-size: 11px; font-weight: 600; background: var(--surface); border: 1px solid var(--border); color: var(--text2); padding: 3px 10px; border-radius: 4px; }
+
+  .resume-loaded { display: none; align-items: center; justify-content: space-between; background: var(--green-light); border: 1px solid #b3e6d3; border-radius: 10px; padding: 16px 20px; gap: 12px; }
+  .resume-loaded.visible { display: flex; }
+  .resume-loaded-info { display: flex; align-items: center; gap: 12px; }
+  .resume-icon { font-size: 26px; }
+  .resume-name { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--green); }
+  .resume-saved { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .btn-change { background: var(--surface); border: 1px solid var(--border-dark); color: var(--text2); border-radius: 6px; font-family: var(--font-body); font-size: 12px; font-weight: 500; padding: 7px 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .btn-change:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Fields */
+  .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .field-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 7px; }
+  input[type="text"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: var(--font-body); font-size: 13px; padding: 10px 14px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+  input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  .btn { background: linear-gradient(135deg, var(--accent), #4035cc); color: #fff; border: none; border-radius: 10px; font-family: var(--font-head); font-size: 14px; font-weight: 700; letter-spacing: 0.5px; padding: 15px 32px; cursor: pointer; transition: all 0.2s; width: 100%; box-shadow: 0 4px 14px rgba(91,79,255,0.28); }
+  .btn:hover { opacity: 0.91; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(91,79,255,0.32); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .status-bar { display: none; align-items: center; gap: 12px; padding: 13px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-top: 14px; font-size: 13px; color: var(--text2); box-shadow: var(--shadow); }
+  .status-bar.visible { display: flex; }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box { background: #fff0f3; border: 1px solid #ffc2d1; border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #c0344a; margin-top: 12px; display: none; }
+  .error-box.visible { display: block; }
+
+  /* Results */
+  #results { margin-top: 32px; }
+  .results-header { font-family: var(--font-head); font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text2); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .results-count { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 600; }
+
+  .job-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-bottom: 14px; box-shadow: var(--shadow); animation: fadeUp 0.35s ease both; position: relative; overflow: hidden; transition: box-shadow 0.2s, border-color 0.2s; }
+  .job-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-dark); }
+  .job-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .job-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+  .job-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .job-company { font-size: 12px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+  .score-badge { flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 15px; font-weight: 800; border: 2px solid; }
+  .score-high { border-color: var(--green); color: var(--green); background: var(--green-light); }
+  .score-mid { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  .job-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+  .tag { font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); color: var(--text2); background: var(--surface2); }
+  .tag.location { border-color: #d4ceff; color: var(--accent); background: var(--accent-light); }
+  .tag.salary { border-color: #b3e6d3; color: var(--green); background: var(--green-light); }
+
+  .job-reasoning { font-size: 13px; color: var(--text2); line-height: 1.7; border-left: 3px solid var(--accent); padding: 10px 14px; margin-bottom: 16px; background: var(--accent-light); border-radius: 0 6px 6px 0; }
+  .job-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .btn-apply { background: transparent; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 7px; font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 7px 16px; cursor: pointer; transition: all 0.2s; text-decoration: none; display: inline-block; }
+  .btn-apply:hover { background: var(--accent); color: #fff; }
+  .btn-rewrite { background: linear-gradient(135deg, var(--accent2), #d63868); border: none; color: #fff; border-radius: 7px; font-family: var(--font-body); font-size: 12px; font-weight: 600; padding: 7px 16px; cursor: pointer; transition: opacity 0.2s; box-shadow: 0 2px 8px rgba(255,79,129,0.22); }
+  .btn-rewrite:hover { opacity: 0.87; }
+  .btn-rewrite:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .rewrite-spinner { display: none; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); margin-top: 12px; }
+  .rewrite-spinner.visible { display: flex; }
+  .rewrite-output { margin-top: 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 18px; font-size: 13px; line-height: 1.8; color: var(--text); white-space: pre-wrap; display: none; font-family: var(--font-body); }
+  .rewrite-output.visible { display: block; animation: fadeUp 0.3s ease; }
+
+  @media (max-width: 600px) { .config-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="logo-row">
+      <div class="logo">JobFit AI</div>
+      <span class="logo-tag">Beta</span>
+    </div>
+    <div class="resume-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-label">No resume saved</span>
+    </div>
+  </header>
+
+  <!-- Resume -->
+  <div class="card">
+    <div class="section-label">Your Resume</div>
+    <div class="upload-area" id="upload-area">
+      <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx" onchange="handleFileUpload(event)">
+      <div class="upload-icon">📄</div>
+      <div class="upload-title">Upload your resume</div>
+      <div class="upload-sub">Drag & drop or click to browse</div>
+      <div class="upload-formats">
+        <span class="fmt-tag">PDF</span>
+        <span class="fmt-tag">DOC</span>
+        <span class="fmt-tag">DOCX</span>
+        <span class="fmt-tag">TXT</span>
+      </div>
+    </div>
+    <div class="resume-loaded" id="resume-loaded">
+      <div class="resume-loaded-info">
+        <div class="resume-icon">✅</div>
+        <div>
+          <div class="resume-name" id="resume-name">resume.pdf</div>
+          <div class="resume-saved">Saved to your profile</div>
+        </div>
+      </div>
+      <button class="btn-change" onclick="changeResume()">Change Resume</button>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="card">
+    <div class="section-label">Search Settings</div>
+    <div class="config-row">
+      <div class="field-group">
+        <label>Job Title / Keywords</label>
+        <input type="text" id="query" placeholder="e.g. Account Executive, SDR" value="Account Executive Sales">
+      </div>
+      <div class="field-group">
+        <label>Location</label>
+        <input type="text" id="location" placeholder="e.g. Toronto, New York" value="Toronto">
+      </div>
+    </div>
+    <div class="config-row">
+      <div class="field-group">
+        <label>Min Fit Score</label>
+        <input type="text" id="min-score" placeholder="e.g. 7" value="7">
+      </div>
+      <div class="field-group">
+        <label>RapidAPI Key</label>
+        <input type="text" id="rapidapi-key" value="c5be66962emsh140c730fd2e2ff6p14c6bbjsn84bd823cea08">
+      </div>
+    </div>
+  </div>
+
+  <div class="error-box" id="error"></div>
+  <button class="btn" id="search-btn" onclick="runSearch()">Find Matching Jobs</button>
+  <div class="status-bar" id="status-bar">
+    <div class="spinner"></div>
+    <span id="status-text">Searching...</span>
+  </div>
+  <div id="results"></div>
+</div>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const SUPABASE_URL = 'https://yqyosxnpyddkwvkcmrbd.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_YwueseawsHWx7YOUtrgRqQ_iYUfhT3B';
+  const USER_ID = 'sameer';
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+  let resumeText = '';
+
+  window.addEventListener('load', loadSavedResume);
+
+  async function loadSavedResume() {
+    try {
+      const { data } = await db.from('resumes').select('*')
+        .eq('user_id', USER_ID).order('updated_at', { ascending: false }).limit(1).single();
+      if (data?.resume_text) { resumeText = data.resume_text; showResumeLoaded(data.file_name || 'resume'); }
+    } catch(e) { /* no saved resume yet */ }
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    setStatus(true, 'Reading your resume...');
+    try {
+      let text = '';
+      if (ext === 'pdf') text = await extractPDF(file);
+      else if (ext === 'docx' || ext === 'doc') text = await extractDOCX(file);
+      else text = await file.text();
+      if (!text.trim()) throw new Error('Could not extract text. Try a different file.');
+      await saveResume(text, file.name);
+    } catch(e) { setStatus(false); showError('Error reading file: ' + e.message); }
+  }
+
+  async function extractPDF(file) {
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    let out = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const c = await page.getTextContent();
+      out += c.items.map(x => x.str).join(' ') + '\n';
+    }
+    return out;
+  }
+
+  async function extractDOCX(file) {
+    const ab = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: ab });
+    return result.value;
+  }
+
+  async function saveResume(text, fileName) {
+    setStatus(true, 'Saving to your profile...');
+    try {
+      const { data: ex } = await db.from('resumes').select('id').eq('user_id', USER_ID).limit(1).single();
+      if (ex) await db.from('resumes').update({ resume_text: text, file_name: fileName, updated_at: new Date().toISOString() }).eq('user_id', USER_ID);
+      else await db.from('resumes').insert({ user_id: USER_ID, resume_text: text, file_name: fileName });
+      resumeText = text; setStatus(false); showResumeLoaded(fileName);
+    } catch(e) { setStatus(false); showError('Save failed: ' + e.message); }
+  }
+
+  function showResumeLoaded(name) {
+    document.getElementById('upload-area').style.display = 'none';
+    document.getElementById('resume-loaded').classList.add('visible');
+    document.getElementById('resume-name').textContent = name;
+    document.getElementById('status-dot').classList.add('loaded');
+    document.getElementById('status-label').textContent = 'Resume saved';
+  }
+
+  function changeResume() {
+    document.getElementById('upload-area').style.display = 'block';
+    document.getElementById('resume-loaded').classList.remove('visible');
+    document.getElementById('file-input').value = '';
+  }
+
+  async function runSearch() {
+    if (!resumeText) return showError('Please upload your resume first.');
+    const query = document.getElementById('query').value.trim();
+    const location = document.getElementById('location').value.trim();
+    const rapidKey = document.getElementById('rapidapi-key').value.trim();
+    const minScore = parseInt(document.getElementById('min-score').value) || 7;
+    if (!rapidKey) return showError('Please enter your RapidAPI key.');
+
+    clearError();
+    setStatus(true, 'Fetching jobs from LinkedIn & Indeed...');
+    document.getElementById('search-btn').disabled = true;
+    document.getElementById('results').innerHTML = '';
+
+    try {
+      const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query+' '+location)}&page=1&num_pages=2&date_posted=month`;
+      const res = await fetch(url, { headers: { 'x-rapidapi-host': 'jsearch.p.rapidapi.com', 'x-rapidapi-key': rapidKey } });
+      if (!res.ok) throw new Error('JSearch error ' + res.status);
+      const data = await res.json();
+      const jobs = (data.data || []).slice(0, 12);
+      if (!jobs.length) throw new Error('No jobs found. Try different keywords.');
+
+      setStatus(true, `Scoring ${jobs.length} jobs with AI...`);
+
+      const summaries = jobs.map((j, i) =>
+        `JOB ${i+1}:\nTitle: ${j.job_title}\nCompany: ${j.employer_name}\nLocation: ${j.job_city||j.job_country}\nSalary: ${j.job_min_salary?'$'+j.job_min_salary+'-$'+j.job_max_salary:'Not listed'}\nDescription: ${(j.job_description||'').slice(0,600)}`
+      ).join('\n\n---\n\n');
+
+      const cr = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+          messages: [{ role: 'user', content: `You are a job fit analyzer. Score each job 1-10 based on resume fit. Be critical and accurate.\n\nRESUME:\n${resumeText}\n\nJOBS:\n${summaries}\n\nReturn ONLY a JSON array, no markdown:\n[{"job_index":1,"score":8,"reason":"2 sentence reason"},...]` }]
+        })
+      });
+      const cd = await cr.json();
+      let scores;
+      try { scores = JSON.parse((cd.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim()); }
+      catch(e) { throw new Error('Could not parse AI scores. Try again.'); }
+
+      const qualified = scores.filter(s => s.score >= minScore).sort((a,b) => b.score - a.score);
+      setStatus(false);
+      renderResults(qualified, jobs, minScore);
+    } catch(err) { setStatus(false); showError(err.message); }
+    finally { document.getElementById('search-btn').disabled = false; }
+  }
+
+  function renderResults(qualified, jobs, minScore) {
+    const el = document.getElementById('results');
+    if (!qualified.length) {
+      el.innerHTML = `<div class="card" style="text-align:center;color:var(--muted);padding:40px 24px">No jobs scored ${minScore}/10 or above. Try lowering the min score or changing keywords.</div>`;
+      return;
+    }
+    const hdr = document.createElement('div');
+    hdr.className = 'results-header';
+    hdr.innerHTML = `Matched Jobs <span class="results-count">${qualified.length} results</span>`;
+    el.appendChild(hdr);
+
+    qualified.forEach((s, idx) => {
+      const job = jobs[s.job_index - 1];
+      if (!job) return;
+      const isHigh = s.score >= 9;
+      const salary = job.job_min_salary ? `$${Number(job.job_min_salary).toLocaleString()} – $${Number(job.job_max_salary).toLocaleString()}` : null;
+      const loc = [job.job_city, job.job_state, job.job_country].filter(Boolean).join(', ');
+      const dE = JSON.stringify((job.job_description||'').slice(0,1000));
+      const tE = JSON.stringify(job.job_title);
+      const card = document.createElement('div');
+      card.className = 'job-card';
+      card.style.animationDelay = `${idx*0.07}s`;
+      card.innerHTML = `
+        <div class="job-top">
+          <div>
+            <div class="job-title">${job.job_title}</div>
+            <div class="job-company">${job.employer_name}</div>
+          </div>
+          <div class="score-badge ${isHigh?'score-high':'score-mid'}">${s.score}/10</div>
+        </div>
+        <div class="job-meta">
+          ${loc?`<span class="tag location">${loc}</span>`:''}
+          ${salary?`<span class="tag salary">${salary}</span>`:''}
+          <span class="tag">${job.job_employment_type||'Full-time'}</span>
+          <span class="tag">${job.job_publisher||'Job Board'}</span>
+        </div>
+        <div class="job-reasoning">${s.reason}</div>
+        <div class="job-footer">
+          <a class="btn-apply" href="${job.job_apply_link}" target="_blank">Apply →</a>
+          <button class="btn-rewrite" onclick="rewriteResume(this,${tE},${dE})">✨ Tailor Resume</button>
+        </div>
+        <div class="rewrite-spinner"><div class="spinner"></div> Tailoring your resume...</div>
+        <div class="rewrite-output"></div>`;
+      el.appendChild(card);
+    });
+  }
+
+  async function rewriteResume(btn, jobTitle, jobDesc) {
+    const card = btn.closest('.job-card');
+    const spinner = card.querySelector('.rewrite-spinner');
+    const output = card.querySelector('.rewrite-output');
+    btn.disabled = true; spinner.classList.add('visible'); output.classList.remove('visible');
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514', max_tokens: 1000,
+          messages: [{ role: 'user', content: `Tailor this resume for the job below. Do not invent experience. Rephrase and reorder to highlight relevant skills and achievements.\n\nJOB: ${jobTitle}\nDESCRIPTION: ${jobDesc}\n\nRESUME:\n${resumeText}\n\nReturn the full tailored resume as clean plain text only.` }]
+        })
+      });
+      const d = await r.json();
+      output.textContent = d.content?.[0]?.text || 'Error generating resume.';
+      output.classList.add('visible');
+    } catch(e) { output.textContent = 'Error: ' + e.message; output.classList.add('visible'); }
+    finally { spinner.classList.remove('visible'); btn.disabled = false; }
+  }
+
+  function setStatus(v, t) { const el = document.getElementById('status-bar'); el.classList.toggle('visible', v); if (t) document.getElementById('status-text').textContent = t; }
+  function showError(m) { const el = document.getElementById('error'); el.textContent = m; el.classList.add('visible'); }
+  function clearError() { document.getElementById('error').classList.remove('visible'); }
+</script>
+</body>
+</html>
